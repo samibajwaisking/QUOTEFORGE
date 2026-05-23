@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuoteForge — Premium Quote Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        inter: ['Inter', 'sans-serif'],
+        playfair: ['"Playfair Display"', 'serif'],
+        jetbrains: ['"JetBrains Mono"', 'monospace'],
+      }
+    }
+  }
+}
+</script>
+<style>
+  :root {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #111111;
+    --border: #1f1f1f;
+    --border2: #2a2a2a;
+    --text: #ffffff;
+    --text-muted: #666666;
+    --text-dim: #333333;
+    --accent: #ffffff;
+    --accent-dim: rgba(255,255,255,0.06);
+  }
+  body.light-mode {
+    --bg: #f5f5f0;
+    --surface: #efefeb;
+    --surface2: #e8e8e4;
+    --border: #d5d5d0;
+    --border2: #c8c8c3;
+    --text: #0a0a0a;
+    --text-muted: #888888;
+    --text-dim: #bbbbbb;
+    --accent: #0a0a0a;
+    --accent-dim: rgba(0,0,0,0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    transition: background 0.3s, color 0.3s;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Top nav */
+  .topbar {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .category-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-muted);
+    background: transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .category-chip:hover {
+    color: var(--text);
+    border-color: var(--text);
+    background: var(--accent-dim);
+  }
+  .category-chip.active {
+    color: var(--bg);
+    background: var(--text);
+    border-color: var(--text);
+  }
+
+  /* Layout */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    min-height: calc(100vh - 57px);
+  }
+  @media (max-width: 768px) {
+    .main-layout { grid-template-columns: 1fr; }
+  }
+
+  /* Canvas Stage */
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    background: var(--bg);
+  }
+
+  .canvas-wrapper {
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  #quoteCanvas {
+    display: block;
+    max-width: 100%;
+    max-height: 70vh;
+    width: auto;
+    height: auto;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  @media (max-width: 768px) {
+    .sidebar {
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+    .stage { padding: 24px 16px; }
+  }
+
+  .sidebar-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .input-field {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-field:focus { border-color: var(--text); }
+  .input-field::placeholder { color: var(--text-dim); }
+
+  select.input-field {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+  }
+
+  /* Logo upload */
+  .upload-zone {
+    border: 1px dashed var(--border2);
+    border-radius: 2px;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .upload-zone:hover {
+    border-color: var(--text-muted);
+    background: var(--accent-dim);
+  }
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  .upload-preview {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 6px;
+  }
+
+  /* Ratio buttons */
+  .ratio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ratio-btn {
+    padding: 8px 6px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+  }
+  .ratio-btn:hover { color: var(--text); border-color: var(--text); }
+  .ratio-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .ratio-icon {
+    display: block;
+    margin: 0 auto 4px;
+    border: 1.5px solid currentColor;
+    border-radius: 1px;
+  }
+
+  /* Theme toggle */
+  .theme-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .theme-btn {
+    padding: 8px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.04em;
+  }
+  .theme-btn:hover { color: var(--text); border-color: var(--text); }
+  .theme-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* Action buttons */
+  .btn-primary {
+    width: 100%;
+    padding: 12px;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    font-family: 'Inter', sans-serif;
+    transition: opacity 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:active { opacity: 0.75; }
+
+  .btn-download {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border2);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    margin-top: 8px;
+  }
+  .btn-download:hover { border-color: var(--text); background: var(--accent-dim); }
+  .btn-download:active { opacity: 0.75; }
+
+  /* Generating state */
+  @keyframes pulse-text {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .generating { animation: pulse-text 1.2s ease-in-out infinite; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    border-radius: 2px;
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Sami footer */
+  .sami-footer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 32px;
+    background: #050505;
+    border-top: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 200;
+  }
+  .sami-footer span {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #333;
+    transition: color 0.15s;
+  }
+  .sami-footer:hover span { color: #888; }
+
+  .sami-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .sami-popup-overlay.open { opacity: 1; pointer-events: all; }
+  .sami-popup {
+    background: #0a0a0a;
+    border: 1px solid #222;
+    padding: 28px;
+    width: 260px;
+    border-radius: 3px;
+  }
+  .sami-popup h3 {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 16px;
+  }
+  .sami-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1px solid #1f1f1f;
+    border-radius: 2px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .sami-link:hover { border-color: #444; background: rgba(255,255,255,0.04); }
+  .sami-close {
+    margin-top: 12px;
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid #1f1f1f;
+    color: #444;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .sami-close:hover { color: #888; border-color: #333; }
+
+  body { padding-bottom: 32px; }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<header class="topbar">
+  <div style="display:flex; align-items:center; padding: 0 16px; height:56px; gap:16px;">
+    <div style="font-size:13px; font-weight:700; letter-spacing:0.05em; white-space:nowrap; color:var(--text); flex-shrink:0;">
+      QUOTE<span style="color:var(--text-muted);">FORGE</span>
+    </div>
+    <div style="width:1px; height:20px; background:var(--border); flex-shrink:0;"></div>
+    <div style="overflow-x:auto; display:flex; gap:6px; padding:8px 0; flex:1; scrollbar-width:none;" id="categoryBar">
+      <button class="category-chip active" data-cat="Motivation">Motivation</button>
+      <button class="category-chip" data-cat="Education">Education</button>
+      <button class="category-chip" data-cat="Freelance">Freelance</button>
+      <button class="category-chip" data-cat="Earn More">Earn More</button>
+      <button class="category-chip" data-cat="Exercise">Exercise</button>
+      <button class="category-chip" data-cat="AI Automation">AI Automation</button>
+      <button class="category-chip" data-cat="Autonomous Agents">Autonomous Agents</button>
+      <button class="category-chip" data-cat="Social Media Growth">Social Media Growth</button>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+  <!-- CANVAS STAGE -->
+  <div class="stage" id="stage">
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <canvas id="quoteCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- SIDEBAR / CONTROL PANEL -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Identity -->
+    <div class="sidebar-section">
+      <span class="label">Your Identity</span>
+      <input class="input-field" id="inputName" type="text" placeholder="Your Name" maxlength="40" style="margin-bottom:8px;">
+      <input class="input-field" id="inputHandle" type="text" placeholder="@socialhandle" maxlength="40">
+    </div>
+
+    <!-- Logo Upload -->
+    <div class="sidebar-section">
+      <span class="label">Logo / Profile Icon</span>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="logoInput" accept="image/*">
+        <div id="uploadPlaceholder">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin:0 auto 6px;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p style="font-size:11px; color:var(--text-muted);">Upload PNG logo</p>
+          <p style="font-size:10px; color:var(--text-dim); margin-top:2px;">Transparent PNG recommended</p>
+        </div>
+        <div id="uploadPreviewWrap" style="display:none;">
+          <img id="uploadPreview" class="upload-preview">
+          <p style="font-size:10px; color:var(--text-muted);">Click to change</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Font Selector -->
+    <div class="sidebar-section">
+      <span class="label">Quote Font</span>
+      <select class="input-field" id="fontSelect">
+        <option value="Inter">Inter — Modern Tech</option>
+        <option value="Playfair Display">Playfair Display — Elegant & Deep</option>
+        <option value="JetBrains Mono">JetBrains Mono — Developer / AI</option>
+      </select>
+    </div>
+
+    <!-- Aspect Ratio -->
+    <div class="sidebar-section">
+      <span class="label">Aspect Ratio</span>
+      <div class="ratio-grid">
+        <button class="ratio-btn active" data-ratio="1:1">
+          <span class="ratio-icon" style="width:18px; height:18px;"></span>
+          Square
+        </button>
+        <button class="ratio-btn" data-ratio="9:16">
+          <span class="ratio-icon" style="width:12px; height:20px;"></span>
+          Story
+        </button>
+        <button class="ratio-btn" data-ratio="16:9">
+          <span class="ratio-icon" style="width:22px; height:13px;"></span>
+          Banner
+        </button>
+      </div>
+    </div>
+
+    <!-- Theme -->
+    <div class="sidebar-section">
+      <span class="label">Canvas Theme</span>
+      <div class="theme-toggle">
+        <button class="theme-btn active" data-theme="dark">◼ Dark</button>
+        <button class="theme-btn" data-theme="light">◻ Light</button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="sidebar-section" style="border-bottom:none; margin-top:auto;">
+      <button class="btn-primary" id="generateBtn" onclick="onGenerate()">
+        ↻ &nbsp;Generate Again
+      </button>
+      <button class="btn-download" id="downloadBtn" onclick="onDownload()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download PNG
+      </button>
+    </div>
+
+  </aside>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SAMI FOOTER -->
+<div class="sami-footer" onclick="document.getElementById('samiPopup').classList.add('open')">
+  <span>By Sami Bajwa</span>
+</div>
+
+<div class="sami-popup-overlay" id="samiPopup" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="sami-popup">
+    <h3>Connect with Sami</h3>
+    <a class="sami-link" href="https://whatsapp.com/channel/0029VbCNzQeISTkQR04DvX3r" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      WhatsApp Channel
+    </a>
+    <a class="sami-link" href="https://www.facebook.com/samibajwaisking" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      Facebook Page
+    </a>
+    <button class="sami-close" onclick="document.getElementById('samiPopup').classList.remove('open')">Close</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const state = {
+  category: 'Motivation',
+  quote: '',
+  font: 'Inter',
+  ratio: '1:1',
+  theme: 'dark',
+  name: '',
+  handle: '',
+  logoImg: null,
+};
+
+// ─── CANVAS DIMENSIONS ───────────────────────────────────────────────────────
+const RATIOS = {
+  '1:1':  { w: 1080, h: 1080 },
+  '9:16': { w: 1080, h: 1920 },
+  '16:9': { w: 1920, h: 1080 },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PROCEDURAL GENERATION ENGINE ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const QUOTE_DATA = {
+
+  // ── 1. MOTIVATION ────────────────────────────────────────────────────────────
+  'Motivation': {
+    hooks: [
+      "The distance between who you are and who you want to be",
+      "Every version of you that quit too early",
+      "The life you have imagined for yourself",
+      "Greatness is not a destination reserved for the gifted",
+      "Everything you have ever wanted",
+      "The mind that refuses to be average",
+      "Progress does not negotiate with comfort",
+      "You were not built for a mediocre existence",
+      "The gap between your potential and your current reality",
+      "Ordinary people with extraordinary commitment",
+      "Suffering without direction is simply pain",
+      "The version of you that never gave up",
+      "Urgency is not stress — it is clarity dressed as momentum",
+      "Your character is not forged in moments of ease",
+      "The cost of inaction compounds silently",
+      "Ambition without execution is just expensive daydreaming",
+      "The universe does not reward talent",
+      "Every sunrise is an unsolicited second chance",
+      "Your past performance is not your permanent ceiling",
+      "Discipline is not punishment — it is a promise kept to yourself",
+    ],
+    cores: [
+      "is measured by the number of days you showed up when showing up felt impossible",
+      "is the raw material from which resolve is forged",
+      "is built one unremarkable disciplined day stacked upon another",
+      "demands that you outwork the voice that says enough",
+      "sits precisely on the other side of the discomfort you keep avoiding",
+      "refuses to be sedated by routine and settles for nothing less than expansion",
+      "can only be closed by daily deliberate and relentless action",
+      "rewards consistency with a ferocity that talent alone could never earn",
+      "is not inherited — it is constructed brick by brick through chosen suffering",
+      "transforms only when you stop negotiating with your own excuses",
+      "becomes purpose the moment you assign it a direction worth pursuing",
+      "exists in every session where you chose effort over explanation",
+      "is written not in grand gestures but in thousands of quiet decisions made correctly",
+      "separates those who dream from those who deliver results",
+      "is compounded silently by the actions your future self is counting on today",
+      "requires you to hold your standard while the world applauds mediocrity",
+      "is earned in the private hours that no audience ever witnesses",
+      "accelerates the moment you treat it as a non-negotiable identity rather than a goal",
+      "compounds interest on every hour you invested when it was hardest to do so",
+      "demands that you fall in love with the process before the outcome arrives",
+    ],
+    outcomes: [
+      "and the world will have no choice but to rearrange itself around your conviction.",
+      "because the alternative — a life half-lived — is the only true failure.",
+      "and discipline will become the quietest form of self-respect you possess.",
+      "until the life you imagined becomes the life you simply live.",
+      "because momentum, once built correctly, does not ask for permission to continue.",
+      "and you will look back amazed at the distance covered one small step at a time.",
+      "because your future self exists only inside the choices your present self makes now.",
+      "and every sacrifice made in silence becomes a foundation others will stand upon.",
+      "until the gap between intention and reality finally closes forever.",
+      "because sustained effort in one direction is the rarest force on this planet.",
+      "and the person you become in the process will outvalue any prize you were chasing.",
+      "because a standard uncompromised is a life uncommonly lived.",
+      "until consistency becomes your most recognizable and unbeatable trait.",
+      "because the world was never changed by those who were comfortable with average.",
+      "and the compound effect of your discipline will astonish even those who doubted you.",
+    ],
+  },
+
+  // ── 2. EDUCATION ─────────────────────────────────────────────────────────────
+  'Education': {
+    hooks: [
+      "The educated mind does not simply collect information",
+      "Learning without application is a library no one enters",
+      "Knowledge compounds with a ferocity that capital cannot match",
+      "The most dangerous person in any room",
+      "An investment in deep understanding",
+      "Curiosity, properly directed and relentlessly pursued",
+      "The student who masters the art of learning itself",
+      "Intellectual humility is not weakness",
+      "Every expert was once simply someone who refused to stop asking why",
+      "The gap between knowing and understanding",
+      "Reading without reflection is consumption without digestion",
+      "The scholar who challenges the conventional",
+      "Education that does not change behavior",
+      "A mind stretched by new ideas",
+      "The deepest competitive advantage available to anyone",
+      "Critical thinking is not taught in classrooms — it is practiced in solitude",
+      "Every book is a mentor who never runs out of patience",
+      "The learner who treats discomfort as a signal of growth",
+      "Mastery is not a destination but a methodology",
+      "Teaching others is the fastest shortcut to understanding yourself",
+    ],
+    cores: [
+      "— it interrogates, synthesizes, and builds new architecture from what it finds",
+      "remains theoretical furniture arranged in an unused room",
+      "and the person who learns continuously will eventually outpace those who merely work harder",
+      "is the one who never stopped being a committed student of their craft",
+      "yields returns that no market downturn, no recession, and no competitor can confiscate",
+      "is the engine that transforms raw intelligence into compounding capability",
+      "has essentially acquired an unfair advantage that scales without diminishing",
+      "— it is the prerequisite for every form of genuine intellectual courage",
+      "because questions asked with honest curiosity are the original research tool",
+      "is the precise space where most people abandon the pursuit of true competence",
+      "and deep thinkers in a shallow world carry a leverage others cannot see or replicate",
+      "does so because they understand that orthodoxy is the natural enemy of discovery",
+      "has not yet earned its place in the category of real education",
+      "never returns to its original dimensions — it becomes permanently enlarged",
+      "is not a degree, a credential, or a title — it is the relentless habit of becoming",
+      "and the ability to think independently is the last truly defensible intellectual asset",
+      "who will answer your questions without judgment at any hour you choose to learn",
+      "is actually reading the signal correctly and moving precisely toward the edge of their ability",
+      "pursued daily by ordinary people produces extraordinary outcomes over extraordinary timelines",
+      "and until you can explain it simply, you have not yet understood it deeply enough",
+    ],
+    outcomes: [
+      "and the person who never stops learning never truly stops growing.",
+      "because the mind that keeps expanding never returns to its original smallness.",
+      "and in a world of specialists, the generalist who learns fast holds the map.",
+      "until the questions you ask become more valuable than the answers you already have.",
+      "because knowledge applied with precision is the closest thing to leverage we possess.",
+      "and your education ends the day you believe you have nothing left to learn.",
+      "because the world will always need people who can think more clearly than the noise.",
+      "until understanding becomes your most renewable and most portable resource.",
+      "and those who learn the craft of learning will always outpace those who only memorize facts.",
+      "because intellectual depth, quietly built, is the foundation every great career stands upon.",
+      "and the student who loves the question will eventually master the answer.",
+      "until the act of learning becomes not what you do but who you fundamentally are.",
+      "because in every field, the next breakthrough belongs to someone still paying attention.",
+      "and curiosity, unlike talent, is a resource that grows the more it is spent.",
+      "because mastery is simply the art of staying a student longer than everyone else.",
+    ],
+  },
+
+  // ── 3. FREELANCE ─────────────────────────────────────────────────────────────
+  'Freelance': {
+    hooks: [
+      "The freelancer who builds a reputation instead of chasing transactions",
+      "Your skills are not a service — they are sovereign capital",
+      "The single greatest leverage a freelancer possesses",
+      "Freedom in work is not accidental",
+      "The difference between a freelancer and a business owner",
+      "Clients do not pay for your time",
+      "The most valuable thing you can sell in the modern economy",
+      "A portfolio that speaks before you enter the room",
+      "Positioning, not talent, determines your price ceiling",
+      "The freelancer who specializes deeply",
+      "Every client relationship is a compounding asset or a compounding liability",
+      "Pricing your work beneath its value",
+      "The market rewards expertise, not effort",
+      "Your network in freelancing is not a luxury",
+      "Freedom is the most expensive thing most freelancers never build",
+      "The proposal that wins is never the cheapest one in the room",
+      "A freelancer without systems is simply a well-paid employee with worse job security",
+      "Your personal brand is the only marketing channel that never goes offline",
+      "Raising your rates is not arrogance",
+      "The freelancer who masters communication",
+    ],
+    cores: [
+      "is operating a business, not simply performing work for hire on demand",
+      "that grows in value the more deliberately you invest in its depth and visibility",
+      "is the clarity of knowing exactly which problem they solve better than anyone else available",
+      "— it is constructed through deliberate systems, brave pricing, and ruthless client selection",
+      "is the decision to stop trading hours and start trading transformations instead",
+      "— they pay for the precision, speed, and certainty that your expertise delivers",
+      "is a documented track record of problems solved at a level clients cannot find elsewhere",
+      "eliminates the need to convince and allows the work to perform the negotiation for you",
+      "and the specialist commands a premium the generalist will never be permitted to charge",
+      "eventually stops competing entirely and begins to attract rather than pursue ideal clients",
+      "— choose each engagement as deliberately as you would choose a long-term partnership",
+      "is a negotiation strategy that teaches every future client exactly what you are worth",
+      "and the freelancer who solves expensive problems will always find their calendar full",
+      "— it is the primary infrastructure through which the next opportunity reliably arrives",
+      "because most build a job they own rather than a practice that could run without them",
+      "— it wins because it communicates value with precision before price is ever discussed",
+      "and the freelancer who builds repeatable processes owns their time in a way others never will",
+      "operating twenty-four hours a day to qualify, attract, and close the clients you deserve",
+      "— it is the honest acknowledgment that your current rate has already outgrown your old identity",
+      "earns more than the one who simply executes because clarity costs more than capability alone",
+    ],
+    outcomes: [
+      "and your reputation, built carefully, will become the asset that earns while you rest.",
+      "because the freelancer who chooses clients wisely is never at the mercy of any single one.",
+      "until your work becomes the reference point others in your field are quietly measured against.",
+      "and the market will always pay a premium for certainty in an ocean of uncertainty.",
+      "because a business built on referrals is a business that has already won the trust war.",
+      "until your expertise commands a premium that competition cannot undercut or replicate.",
+      "and the freelancer who never settles for budget clients builds a career the market respects.",
+      "because your next breakthrough client is already watching the quality of your current work.",
+      "until positioning replaces prospecting as the engine of your professional growth.",
+      "and the client who values your work will never ask you to justify your rate.",
+      "because every standard you hold in your work compounds into the reputation you inherit.",
+      "until freedom — not income — becomes the measure by which you evaluate every opportunity.",
+      "and the freelancer who solves the right problems becomes genuinely difficult to replace.",
+      "because deep specialization is the most sustainable competitive advantage in any market.",
+      "until the work you do today becomes the reference others cite tomorrow.",
+    ],
+  },
+
+  // ── 4. EARN MORE ─────────────────────────────────────────────────────────────
+  'Earn More': {
+    hooks: [
+      "Wealth is not a reward — it is a reflection of value delivered at scale",
+      "The income ceiling you are experiencing",
+      "Money flows not toward the hardest worker",
+      "Financial freedom is not purchased — it is engineered",
+      "The difference between income and wealth",
+      "Every hour you trade for a fixed wage",
+      "The investor mindset does not ask how to earn more",
+      "Scarcity thinking keeps the door closed",
+      "Your earning potential is not determined by your industry",
+      "The most underpriced asset in most people's possession",
+      "Building multiple income streams is not greed",
+      "The person who understands leverage",
+      "Wealth created through value is the only kind that is sustainable",
+      "Your relationship with money is a mirror of your relationship with your own worth",
+      "The financial breakthrough most people are waiting for",
+      "High earners do not work harder — they work on different problems",
+      "Every skill upgrade you make today",
+      "The market pays for outcomes, not effort — this is not unfair, it is simply the mechanism",
+      "Passive income is not passive — it is the delayed dividend of intensely active building",
+      "The wealth gap between two people of equal talent",
+    ],
+    cores: [
+      "is not a market problem — it is a positioning and leverage problem waiting to be solved",
+      "but toward the most precise solution to the most expensive problem in the market",
+      "through systems, assets, and leverage that continue generating value without your daily presence",
+      "is the distance between money that arrives once and money that arrives repeatedly",
+      "is the quiet tax on every year you spend building someone else's equity instead of your own",
+      "— it asks how to build a system that generates income independent of time invested",
+      "— abundance thinking asks what value can be created at a scale that eliminates the ceiling",
+      "but by the quality of the problems you have chosen to solve on its behalf",
+      "is the specific knowledge you have accumulated that is both rare and immediately valuable",
+      "— it is the intelligent engineering of diverse revenue flows to eliminate single-point failure",
+      "will always earn more than the one who only understands effort without understanding systems",
+      "and the person who builds it first benefits from a permanent first-mover compounding advantage",
+      "— examine it honestly and you will find exactly where the next income breakthrough lives",
+      "is already sitting inside every skill, relationship, and insight you have not yet monetized",
+      "because they have learned that your time is fixed but the leverage you apply is not",
+      "is a future salary increase compounding silently in the background of your career",
+      "and the sooner you internalize it, the sooner your income strategy becomes truly scalable",
+      "and the discipline to build assets quietly is the strategy wealth quietly rewards most",
+      "is determined entirely by how early one of them decided to prioritize leverage over labor",
+      "and financial freedom begins the precise moment you stop confusing a high salary with actual wealth",
+    ],
+    outcomes: [
+      "and the person who solves expensive problems at scale will never negotiate from scarcity.",
+      "because money earned through leverage does not require you to trade more hours to grow.",
+      "until your assets work with greater consistency and fewer complaints than any employee could.",
+      "and the income you build on top of your expertise compounds where effort alone cannot reach.",
+      "because financial independence is simply the result of building more value than you consume.",
+      "until every hour invested in a system pays dividends that outlast the effort that created it.",
+      "and the wealth built quietly through consistent value creation speaks louder than any salary.",
+      "because the person who owns assets sleeps differently than the person who only earns wages.",
+      "until your income is no longer determined by how many hours you are willing to trade.",
+      "and those who build financial systems today will harvest financial freedom tomorrow.",
+      "because the market has no ceiling for value that is genuinely rare and consistently delivered.",
+      "until earning more becomes a natural consequence of becoming someone worth paying more.",
+      "and the financial life you deserve is already encoded in the decisions you make this year.",
+      "because every income stream you build is a vote of confidence in your own long-term worth.",
+      "until financial freedom stops being a goal and becomes simply the life you are already living.",
+    ],
+  },
+
+  // ── 5. EXERCISE ──────────────────────────────────────────────────────────────
+  'Exercise': {
+    hooks: [
+      "The body you inhabit is the only environment you will never be able to leave",
+      "Physical discipline is the prototype for every other discipline you will ever need",
+      "Strength is not built in the moments that feel manageable",
+      "The gym is not a place you go to look better",
+      "Every rep performed when quitting was the easier option",
+      "The body kept in motion develops a momentum the sedentary mind cannot comprehend",
+      "Fitness is not vanity — it is the daily audit of what you are actually committed to",
+      "The cardiovascular system trained consistently",
+      "Pain in training is the body communicating that adaptation is underway",
+      "The athlete who trains the mind with the same rigor as the body",
+      "Consistency in physical practice outlasts every burst of motivation that ever existed",
+      "The person who moves deliberately through discomfort",
+      "Sleep, nutrition, and training are not lifestyle choices",
+      "Your physical standard communicates your standard for everything else",
+      "The weight you lift in training",
+      "Recovery is not the absence of training — it is training under a different name",
+      "The discipline required to train when no one is watching",
+      "Every body in motion is a body in the process of becoming more capable than it was",
+      "Showing up on the days you least want to",
+      "The strongest version of yourself was never found in the absence of resistance",
+    ],
+    cores: [
+      "— maintain it with the same strategic investment you give your most important work",
+      "and the person who masters their physical practice has a template for mastering anything",
+      "— it is forged in the repetitions performed after the mind has already asked you to stop",
+      "— it is a laboratory where you test your relationship with difficulty and discomfort",
+      "is a deposit into the compound account of your long-term physical and mental resilience",
+      "the sedentary mind cannot comprehend because it has never experienced what the body is truly capable of",
+      "of whether your intentions are aligned with your daily physical investments",
+      "becomes a cardiovascular asset that pays compound interest in energy, focus, and longevity",
+      "and the athlete who listens intelligently to that signal accelerates faster than those who ignore it",
+      "becomes formidable in every domain where difficulty and discomfort are the gatekeepers",
+      "because motivation visits occasionally but discipline lives with you permanently",
+      "learns a language of resilience that translates directly into every difficult decision they face",
+      "— they are the infrastructure upon which every other performance in your life is built",
+      "and raising your physical standard is the fastest way to raise your standard everywhere else",
+      "is the weight of character being built one uncomfortable session at a time",
+      "because the body that is allowed to repair fully comes back with capacities it did not have before",
+      "is the architecture of a character that performs under pressure when everything is at stake",
+      "than it was when it first arrived at the threshold of its own perceived limitation",
+      "is the session that separates those who have goals from those who have built an identity around them",
+      "— it exists only on the other side of the resistance you chose not to walk away from",
+    ],
+    outcomes: [
+      "and the body trained consistently becomes a monument to the discipline that built it.",
+      "because physical strength is simply the most visible form of the commitment you carry privately.",
+      "until the act of training becomes not what you do on certain days but who you fundamentally are.",
+      "and the energy earned through consistent physical practice is the most underrated career advantage.",
+      "because every session compounds into a version of you that future challenges cannot easily break.",
+      "until your body becomes the most reliable evidence of the standards you refuse to compromise.",
+      "and the person who trains their body trains their mind to negotiate with difficulty every single day.",
+      "because longevity is not luck — it is the dividend paid by decades of consistent physical investment.",
+      "until your physical practice becomes the foundation from which every other discipline grows.",
+      "and the strongest version of yourself is always waiting on the other side of today's resistance.",
+      "because the body trained to endure discomfort becomes a mind that endures uncertainty without flinching.",
+      "until your fitness becomes the clearest daily signal that you keep the promises you make to yourself.",
+      "and those who invest in their physical capacity compound interest in every area of their life.",
+      "because the discipline to train when it is hard is the same discipline that succeeds when stakes are highest.",
+      "until health stops being a goal you pursue and becomes the standard from which you never retreat.",
+    ],
+  },
+
+  // ── 6. AI AUTOMATION ─────────────────────────────────────────────────────────
+  'AI Automation': {
+    hooks: [
+      "The professional who automates intelligently does not simply save time",
+      "AI does not eliminate work — it eliminates the ceiling on what one person can accomplish",
+      "Every repetitive task still performed manually",
+      "The competitive advantage of this decade belongs entirely to those who learn to delegate to machines",
+      "Automation is not a shortcut — it is the intelligent reallocation of human cognitive resources",
+      "The business that deploys AI strategically",
+      "We are not entering an era of AI replacing humans",
+      "The workflow you have not yet automated",
+      "Leverage in the age of AI is not physical or financial — it is computational and scalable",
+      "The person who understands how to instruct machines",
+      "AI automation done well does not make you lazier",
+      "Every hour reclaimed from a machine-executable task",
+      "The operator who builds intelligent workflows today",
+      "Not all automation is equal — the kind that compounds your expertise is the kind that matters",
+      "AI is the first technology in history that scales human judgment rather than merely human labor",
+      "The entrepreneur who automates their highest-volume lowest-thinking tasks",
+      "A workflow automated is a decision permanently removed from your daily cognitive load",
+      "The question is no longer whether AI will be part of your workflow",
+      "Those who automate their outputs are not working less — they are working on what only they can do",
+      "The era of doing everything manually ended quietly — most people simply have not noticed yet",
+    ],
+    cores: [
+      "— they reclaim the hours that compound into the creative and strategic work that defines their ceiling",
+      "and the person who understands this distinction will outscale those who simply work longer hours",
+      "is a tax paid in hours on every task that a well-configured AI system could have handled already",
+      "and those who treat it as a later priority will find the gap increasingly expensive to close",
+      "toward the high-judgment creative and strategic work that only human intelligence can provide",
+      "does not compete with those who are still doing manually what machines have learned to do well",
+      "— we are entering an era of AI amplifying humans who are skilled enough to direct it precisely",
+      "is a bottleneck quietly consuming the time and energy that your most important work requires",
+      "and those who harness it early will operate at a scale that their predecessors could not have imagined",
+      "will always have more effective leverage than the person who only understands how to use them",
+      "— it makes you more effective because your intelligence is now multiplied by machine throughput",
+      "is an investment in the creative and strategic capacity that ultimately determines your ceiling",
+      "is building an operational infrastructure that compounds returns while the competition still deliberates",
+      "and the automation that amplifies your specialized judgment is worth building before any other kind",
+      "and the professionals who master directing AI will become exponentially more valuable than those who resist it",
+      "is now free to invest that cognitive capacity in the ten percent of work that machines cannot replicate",
+      "that accumulates into the cognitive clarity and creative bandwidth your best work demands",
+      "— the question is whether you will be the one directing it or simply subject to those who are",
+      "— they are systematically building the only kind of leverage that gets cheaper as it scales",
+      "and the professionals still drowning in execution will find themselves outpaced by those who have delegated it",
+    ],
+    outcomes: [
+      "and the operator who automates wisely will outproduce any team that relies on effort alone.",
+      "because AI leverage compounds exactly like financial leverage — early adopters earn the greatest returns.",
+      "until your automated systems produce more output in an hour than your manual process did in a day.",
+      "and the workflow you build today will carry the output of work you will never have to repeat.",
+      "because the professional who automates the right tasks becomes genuinely difficult to compete with.",
+      "until automation becomes the infrastructure upon which your most important creative work is built.",
+      "and those who learn to direct AI precisely will write the next decade of industry-defining outcomes.",
+      "because a system that runs without you is the closest thing to intellectual compounding that exists.",
+      "until every hour you spend on high-judgment work is multiplied by the machines working alongside you.",
+      "and the competitive gap between the automator and the non-automator will only widen from here.",
+      "because AI is not a feature of the future — it is the operating system of the present moment.",
+      "until your workflows operate at a scale and consistency no purely manual process could sustain.",
+      "and the person who builds intelligent systems today is already earning the returns of tomorrow.",
+      "because the time saved through automation is not time off — it is time upgraded to its highest use.",
+      "until your automated infrastructure becomes the most scalable employee you have ever deployed.",
+    ],
+  },
+
+  // ── 7. AUTONOMOUS AGENTS ─────────────────────────────────────────────────────
+  'Autonomous Agents': {
+    hooks: [
+      "An autonomous agent does not clock out — it executes against your goals continuously",
+      "The shift from using AI tools to deploying AI agents",
+      "We have entered the age of delegated intelligence",
+      "The operator who orchestrates agents rather than performing tasks",
+      "Building an autonomous agent is an act of encoding your expertise into a tireless executor",
+      "The next tier of competitive advantage does not live in skills alone",
+      "Autonomous systems are not the future of work — they are the present operational reality",
+      "The person who can architect multi-agent workflows",
+      "AI agents do not get tired, do not forget instructions, and do not carry emotional overhead",
+      "The entrepreneur who deploys agents across their entire operation",
+      "Delegation to human teams has limits — delegation to autonomous agents does not follow the same rules",
+      "The agent you build today learns the shape of your goals and executes against them without supervision",
+      "Agentic AI systems represent the first time in history that scale does not require proportional headcount",
+      "The architect of autonomous systems is not replacing workers — they are replacing the need to supervise routine work",
+      "A well-designed agent is a crystallized version of your best decision-making process running perpetually",
+      "The business that adopts an agent-first operational model",
+      "Every complex workflow you have not yet decomposed into an autonomous process",
+      "The era of doing things yourself ends the moment your agents can do them better",
+      "Orchestration is the highest-order skill of the agentic era",
+      "The entrepreneur who thinks in systems and agents rather than tasks and hours",
+    ],
+    cores: [
+      "and the operator who understands this will never again be limited by the hours in their day",
+      "is the single most consequential professional transition of this generation",
+      "and those who learn to delegate to intelligent systems will operate at a scale previously impossible for individuals",
+      "is no longer constrained by the upper boundary of what a single person or team can manually execute",
+      "and every process you encode into an agent is expertise that compounds without your ongoing presence",
+      "— it lives in the architecture of agents designed to pursue your objectives without interruption",
+      "for operators who have understood that execution can be delegated while judgment is retained",
+      "has essentially built a workforce that scales without the friction of organizational management",
+      "and the systems built on these properties are fundamentally more consistent than any human-dependent process",
+      "has freed the strategic cognitive capacity required to identify the next order of opportunity",
+      "because agents operate on instructions, not on motivation, compensation, or availability constraints",
+      "without requiring you to re-explain the objective every time a new session begins",
+      "and the organizations that internalize this principle earliest will compound the advantage fastest",
+      "so that human intelligence can be reserved for the judgment calls that only human context provides",
+      "deployed without interruption across every repeatable decision your operation encounters",
+      "does not simply cut costs — it eliminates the ceiling on what that operation can ultimately produce",
+      "is a process still costing you the human attention that your most important strategic work requires",
+      "and the operator who makes this transition correctly compounds their output on an entirely new curve",
+      "and those who master it will build operational leverage that their competitors cannot easily replicate",
+      "will build in a year what previously required a decade and a much larger team to accomplish",
+    ],
+    outcomes: [
+      "and the operator of agents does not simply work smarter — they have exited the time-for-output equation entirely.",
+      "because an agent that runs while you sleep is the most asymmetric productivity investment available today.",
+      "until your autonomous systems are executing at a scale your manual effort could never have sustained.",
+      "and the architect of intelligent agent networks will write the next chapter of industry-defining organizations.",
+      "because every workflow encoded into an agent is a permanent operational asset that costs nothing to redeploy.",
+      "until your agents are handling the execution so completely that your only work is the strategy itself.",
+      "and those who build agentic infrastructure now are compounding an advantage the late majority will never fully close.",
+      "because autonomous systems that execute your vision without supervision are the closest thing to leverage at infinite scale.",
+      "until your operational capacity is no longer bounded by how many hours you personally have available.",
+      "and the organization built on agents rather than repetitive human labor has already solved its scaling problem.",
+      "because the future of elite performance belongs to those who can direct intelligence, not simply supply it.",
+      "until the gap between what one agentic operator produces and what one manual operator produces becomes undeniable.",
+      "and every agent you deploy today is a compounding investment in the operational freedom of your future.",
+      "because autonomous infrastructure built with precision today becomes the unfair advantage of tomorrow.",
+      "until you realize that the ceiling you were bumping against was never a talent ceiling — it was a delegation ceiling.",
+    ],
+  },
+
+  // ── 8. SOCIAL MEDIA GROWTH ───────────────────────────────────────────────────
+  'Social Media Growth': {
+    hooks: [
+      "The creator who builds an audience owns a distribution channel no algorithm can fully revoke",
+      "Consistency on social media is not a content strategy — it is a trust-building strategy",
+      "Your personal brand is not what you say about yourself",
+      "The audience you build today",
+      "Virality is a lottery — audience building is a deliberate engineering project",
+      "The creator who understands their audience at a psychological level",
+      "Content without a point of view is noise dressed up as information",
+      "The social media operator who treats their platform as a business",
+      "Attention is the currency of the digital economy",
+      "The creator who documents their genuine expertise instead of performing borrowed wisdom",
+      "Every piece of content published is a long-running asset that earns attention compounding over time",
+      "Your niche is not a limitation — it is the precise mechanism through which you become unforgettable",
+      "The account that grows fastest is rarely the one posting most often",
+      "Community is not a marketing tactic — it is the compound interest of consistent and genuine value delivery",
+      "The creator who learns from their analytics with the same discipline a trader studies price action",
+      "Social media growth that compounds is never accidental",
+      "One piece of deeply resonant content outlasts a hundred pieces of forgettable ones",
+      "The personal brand built on authentic expertise is the only kind that survives algorithm changes",
+      "Engagement is not a vanity metric when it is evidence of a community that has been genuinely served",
+      "The creator who writes for a specific person rather than a generic audience",
+    ],
+    cores: [
+      "and that distribution, compounded over years, becomes one of the most valuable business assets imaginable",
+      "and the accounts that show up with discipline during the invisible early phase earn the audience that endures",
+      "— it is what your audience consistently experiences every time they engage with your content",
+      "is a compounding asset that appreciates in value every single time you deliver something worth remembering",
+      "and the builders who understand this do not chase viral moments — they architect reliable resonance",
+      "does not simply create content — they create the exact words their audience was not yet able to articulate",
+      "and the creator with a distinctive perspective on a relevant topic will always attract a loyal following over time",
+      "rather than a hobby understands that every post is either building or eroding brand equity",
+      "and the creator who spends it deliberately on genuine value will earn a compounding return on that investment",
+      "builds a body of work that the algorithm rewards because audiences reward it first",
+      "and the creator who publishes consistently for long enough builds a library the algorithm continually rediscovers",
+      "and the creator who goes deep on one specific transformation earns the trust the generalist can never access",
+      "— it is the one that posts content so specifically valuable that every reader feels it was written for them alone",
+      "and the creator who prioritizes genuine value over engagement metrics earns the community that competitors cannot buy",
+      "will optimize their content strategy with a precision that purely intuitive creators will never match",
+      "— it is the deliberate daily compounding of value, specificity, consistency, and a perspective worth following",
+      "and a single piece of deeply valuable content will generate awareness, trust, and inbound for years after its creation",
+      "because authenticity is the one content format that platform changes and AI-generated noise cannot commoditize",
+      "and the creator who earns it through genuine service builds a platform that no ad budget can manufacture",
+      "always writes content that converts because specificity is the secret language of resonance at scale",
+    ],
+    outcomes: [
+      "and the audience built with genuine value becomes the most durable competitive asset in any creator's portfolio.",
+      "because the creator who shows up consistently long enough eventually becomes the default authority in their space.",
+      "until your content is the first place your ideal audience turns when they need the answer you provide.",
+      "and the personal brand compounded over years becomes the distribution engine every business wishes they had built.",
+      "because the creator who serves a specific audience deeply will always outperform the one chasing everyone generally.",
+      "until the community you have built becomes the most powerful referral network your business will ever have.",
+      "and the account that delivers genuine value consistently will outlast every algorithm change the platforms deploy.",
+      "because a loyal niche audience that trusts you is worth more than a massive audience that barely knows you.",
+      "until your content works as a twenty-four hour ambassador for your expertise, your perspective, and your value.",
+      "and the creator who treats their platform as a long-term asset will harvest returns others never waited long enough to earn.",
+      "because audience ownership is the only form of digital real estate that appreciates with consistent investment.",
+      "until your personal brand becomes the single most recognizable signal of quality in your chosen domain.",
+      "and the trust built through years of consistent value delivery becomes the foundation no competitor can easily undermine.",
+      "because the creator who serves before they sell builds a community that buys before they are even asked.",
+      "until your content library becomes the evidence that your audience uses to justify trusting you with their attention.",
+    ],
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ANTI-REPEAT TRACKING (localStorage) ─────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const STORAGE_KEY = 'qf_viewed_quotes';
+const MAX_HISTORY = 500; // cap to avoid localStorage bloat
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch { return []; }
+}
+
+function saveHistory(arr) {
+  try {
+    // Keep only the last MAX_HISTORY entries
+    const trimmed = arr.slice(-MAX_HISTORY);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  } catch { /* storage full — silently continue */ }
+}
+
+// Simple hash: concatenate first chars of each part + lengths
+function hashQuote(h, c, o) {
+  return `${h.slice(0, 12)}|${c.slice(0, 12)}|${o.slice(0, 12)}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── MAIN GENERATOR FUNCTION ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateUniqueQuote(category) {
+  const data = QUOTE_DATA[category] || QUOTE_DATA['Motivation'];
+  const history = loadHistory();
+  const MAX_ATTEMPTS = 40;
+
+  let chosenHash, chosenQuote;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const hook    = pick(data.hooks);
+    const core    = pick(data.cores);
+    const outcome = pick(data.outcomes);
+
+    chosenHash  = hashQuote(hook, core, outcome);
+    chosenQuote = `${hook} ${core} ${outcome}`;
+
+    // Accept if not seen before — OR if we've exhausted attempts (force fresh anyway)
+    if (!history.includes(chosenHash) || attempt === MAX_ATTEMPTS - 1) {
+      history.push(chosenHash);
+      saveHistory(history);
+      return chosenQuote;
+    }
+  }
+
+  return chosenQuote; // fallback (never triggered in practice)
+}
+
+// ─── RENDER CANVAS ────────────────────────────────────────────────────────────
+function renderCanvas() {
+  const canvas = document.getElementById('quoteCanvas');
+  const { w, h } = RATIOS[state.ratio];
+  const DPR = 2; // Retina scaling
+  canvas.width  = w * DPR;
+  canvas.height = h * DPR;
+  canvas.style.width  = '';
+  canvas.style.height = '';
+
+  // Constrain display size
+  const stage = document.getElementById('stage');
+  const maxW = stage.clientWidth  - 64;
+  const maxH = window.innerHeight * 0.72;
+  const scale = Math.min(maxW / w, maxH / h, 1);
+  canvas.style.width  = (w * scale) + 'px';
+  canvas.style.height = (h * scale) + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  // Theme colors
+  const isDark = state.theme === 'dark';
+  const BG         = isDark ? '#000000' : '#f8f8f4';
+  const TEXT_MAIN  = isDark ? '#ffffff' : '#0a0a0a';
+  const TEXT_MUTED = isDark ? '#555555' : '#aaaaaa';
+  const TEXT_DIM   = isDark ? '#2a2a2a' : '#dddddd';
+  const ACCENT     = isDark ? '#ffffff' : '#0a0a0a';
+
+  // Background
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle noise grain
+  ctx.save();
+  ctx.globalAlpha = 0.025;
+  for (let i = 0; i < w * h * 0.0015; i++) {
+    const gx = Math.random() * w;
+    const gy = Math.random() * h;
+    ctx.fillStyle = isDark ? '#fff' : '#000';
+    ctx.fillRect(gx, gy, 1, 1);
+  }
+  ctx.restore();
+
+  // Decorative corner lines
+  const lineLen = Math.min(w, h) * 0.07;
+  const margin = w * 0.06;
+  ctx.strokeStyle = TEXT_DIM;
+  ctx.lineWidth = 1.5;
+  // TL
+  ctx.beginPath(); ctx.moveTo(margin, margin + lineLen); ctx.lineTo(margin, margin); ctx.lineTo(margin + lineLen, margin); ctx.stroke();
+  // TR
+  ctx.beginPath(); ctx.moveTo(w - margin - lineLen, margin); ctx.lineTo(w - margin, margin); ctx.lineTo(w - margin, margin + lineLen); ctx.stroke();
+  // BL
+  ctx.beginPath(); ctx.moveTo(margin, h - margin - lineLen); ctx.lineTo(margin, h - margin); ctx.lineTo(margin + lineLen, h - margin); ctx.stroke();
+  // BR
+  ctx.beginPath(); ctx.moveTo(w - margin - lineLen, h - margin); ctx.lineTo(w - margin, h - margin); ctx.lineTo(w - margin, h - margin - lineLen); ctx.stroke();
+
+  // Category label (top center)
+  const catPad = w * 0.08;
+  ctx.font = `500 ${w * 0.016}px 'Inter', sans-serif`;
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.letterSpacing = `${w * 0.005}px`;
+  ctx.textAlign = 'center';
+  ctx.fillText(state.category.toUpperCase(), w / 2, h * 0.11);
+  ctx.letterSpacing = '0px';
+
+  // Thin horizontal rule under category
+  const ruleY = h * 0.13;
+  const ruleW = w * 0.06;
+  ctx.strokeStyle = TEXT_DIM;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - ruleW, ruleY);
+  ctx.lineTo(w / 2 + ruleW, ruleY);
+  ctx.stroke();
+
+  // Quote text (wrapped)
+  const fontMap = {
+    'Inter': "'Inter', sans-serif",
+    'Playfair Display': "'Playfair Display', serif",
+    'JetBrains Mono': "'JetBrains Mono', monospace",
+  };
+  const fontFamily = fontMap[state.font] || fontMap['Inter'];
+  const isPlayfair  = state.font === 'Playfair Display';
+  const isMono      = state.font === 'JetBrains Mono';
+
+  const textAreaX = w * 0.10;
+  const textAreaW = w * 0.80;
+  const baseFontSize = w * 0.054;
+  const lineH = baseFontSize * (isPlayfair ? 1.55 : isMono ? 1.5 : 1.5);
+
+  // Opening quotation mark
+  ctx.font = `${isPlayfair ? 'italic' : 'normal'} ${w * 0.16}px ${fontFamily}`;
+  ctx.fillStyle = TEXT_DIM;
+  ctx.textAlign = 'left';
+  ctx.fillText('\u201C', textAreaX - w * 0.01, h * 0.30);
+
+  // Wrap text
+  ctx.font = `${isPlayfair ? '400 italic' : '400'} ${baseFontSize}px ${fontFamily}`;
+  ctx.fillStyle = TEXT_MAIN;
+  ctx.textAlign = 'center';
+
+  const words = (state.quote || '').split(' ');
+  let lines = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? current + ' ' + word : word;
+    if (ctx.measureText(test).width > textAreaW) {
+      if (current) lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+
+  const totalTextH = lines.length * lineH;
+  const centerY = h * 0.5;
+  const startY = centerY - totalTextH / 2 + baseFontSize * 0.5;
+
+  lines.forEach((line, i) => {
+    ctx.fillText(line, w / 2, startY + i * lineH);
+  });
+
+  // Closing quotation mark
+  ctx.font = `${isPlayfair ? 'italic' : 'normal'} ${w * 0.16}px ${fontFamily}`;
+  ctx.fillStyle = TEXT_DIM;
+  ctx.textAlign = 'right';
+  ctx.fillText('\u201D', w - textAreaX + w * 0.01, startY + totalTextH - baseFontSize * 0.3);
+
+  // ── ATTRIBUTION BAR ────────────────────────────────────────────────────────
+  const attrY = h * 0.84;
+  const attrFont = `500 ${w * 0.022}px 'Inter', sans-serif`;
+  const handleFont = `400 ${w * 0.018}px 'Inter', sans-serif`;
+
+  // Thin rule above attribution
+  ctx.strokeStyle = TEXT_DIM;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.10, attrY - h * 0.025);
+  ctx.lineTo(w * 0.90, attrY - h * 0.025);
+  ctx.stroke();
+
+  const logoSize = h * 0.055;
+  const logoGap  = w * 0.018;
+  const hasLogo   = !!state.logoImg;
+  const hasName   = !!state.name.trim();
+  const hasHandle = !!state.handle.trim();
+
+  // Measure text to center everything
+  ctx.font = attrFont;
+  const nameW = hasName ? ctx.measureText(state.name).width : 0;
+  ctx.font = handleFont;
+  const handleW = hasHandle ? ctx.measureText(state.handle).width : 0;
+
+  const blockW = (hasLogo ? logoSize + logoGap : 0)
+               + (hasName ? nameW + (hasHandle ? w * 0.022 : 0) : 0)
+               + (hasHandle ? handleW : 0);
+
+  let curX = (w - blockW) / 2;
+
+  // Logo
+  if (hasLogo) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(curX + logoSize / 2, attrY + logoSize / 2 - logoSize * 0.1, logoSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(state.logoImg, curX, attrY - logoSize * 0.1, logoSize, logoSize);
+    ctx.restore();
+    curX += logoSize + logoGap;
+  }
+
+  // Name
+  if (hasName) {
+    ctx.font = attrFont;
+    ctx.fillStyle = TEXT_MAIN;
+    ctx.textAlign = 'left';
+    ctx.fillText(state.name, curX, attrY + logoSize * 0.35);
+    curX += nameW + (hasHandle ? w * 0.022 : 0);
+  }
+
+  // Handle
+  if (hasHandle) {
+    ctx.font = handleFont;
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.textAlign = 'left';
+    ctx.fillText(state.handle, curX, attrY + logoSize * 0.35);
+  }
+}
+
+// ─── GENERATE ─────────────────────────────────────────────────────────────────
+function onGenerate() {
+  const btn = document.getElementById('generateBtn');
+  btn.classList.add('generating');
+  btn.textContent = 'Generating…';
+  setTimeout(() => {
+    state.quote = generateUniqueQuote(state.category);
+    renderCanvas();
+    btn.classList.remove('generating');
+    btn.innerHTML = '↻ &nbsp;Generate Again';
+  }, 300);
+}
+
+// ─── DOWNLOAD ─────────────────────────────────────────────────────────────────
+function onDownload() {
+  const canvas = document.getElementById('quoteCanvas');
+  const { w, h } = RATIOS[state.ratio];
+  const slug = state.category.toLowerCase().replace(/\s+/g, '-');
+  const filename = `quoteforge-${slug}-${Date.now()}.png`;
+
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded — ' + filename);
+  }, 'image/png', 1.0);
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── EVENT WIRING ─────────────────────────────────────────────────────────────
+
+// Category chips
+document.getElementById('categoryBar').addEventListener('click', (e) => {
+  const chip = e.target.closest('.category-chip');
+  if (!chip) return;
+  document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  state.category = chip.dataset.cat;
+  state.quote = generateUniqueQuote(state.category);
+  renderCanvas();
+});
+
+// Name + Handle
+document.getElementById('inputName').addEventListener('input', (e) => {
+  state.name = e.target.value;
+  renderCanvas();
+});
+document.getElementById('inputHandle').addEventListener('input', (e) => {
+  state.handle = e.target.value;
+  renderCanvas();
+});
+
+// Font
+document.getElementById('fontSelect').addEventListener('change', (e) => {
+  state.font = e.target.value;
+  renderCanvas();
+});
+
+// Ratio
+document.querySelectorAll('.ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.ratio = btn.dataset.ratio;
+    renderCanvas();
+  });
+});
+
+// Theme
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.theme = btn.dataset.theme;
+    document.body.classList.toggle('light-mode', state.theme === 'light');
+    renderCanvas();
+  });
+});
+
+// Logo Upload
+document.getElementById('logoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      state.logoImg = img;
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+      document.getElementById('uploadPreviewWrap').style.display = 'block';
+      document.getElementById('uploadPreview').src = ev.target.result;
+      renderCanvas();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Resize observer
+let resizeTimer;
+const ro = new ResizeObserver(() => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderCanvas, 80);
+});
+ro.observe(document.getElementById('stage'));
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Wait for Google Fonts to load
+  document.fonts.ready.then(() => {
+    state.quote = generateUniqueQuote(state.category);
+    renderCanvas();
+  });
+});
+</script>
+</body>
+</html>
